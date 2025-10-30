@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Management</title>
+    <link rel="stylesheet" href="/css/config.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <h2>Configuration Management</h2>
+            <form id="filterForm">
+                <div class="form-row">
+
+                    <div class="form-group">
+                        <label for="operation">Select Operation:</label>
+                        <select id="operation" name="operation" required>
+                            <option value="">--Select Operation--</option>
+                            <option value="add_custMst">Manage Customers</option>
+                        </select>
+                    </div>
+                    <div class="form-group submit-group">
+                        <button type="submit" id="submitBtn">Submit</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div id="messageContainer"></div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="results-section hidden">
+            <div class="section-header">
+                <h3 id="dataTitle">Records</h3>
+                <div class="button-group">
+                    <button type="button" id="updateBtn" class="update-btn hidden">Save</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="resultsTable">
+                    <thead id="tableHeader">
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+    </div>
+
+
+    <!-- Load all scripts in this order -->
+    <script src="/js/config.js"></script>
+</body>
+
+</html>
