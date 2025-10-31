@@ -12,7 +12,8 @@ async function getCustMstData(conn) {
         yCmEmail,
         yCmCurCd,
         yCmDfltLng,
-        yCmMulBy
+        yCmMulBy,
+        yCmValidYN
       `,
       from: `[${dbName}].dbo.yCustMst`,
       whereConditions: [],
@@ -29,12 +30,12 @@ async function getCustMstData(conn) {
   }
 }
 
-// Modified: Update only Multiplier and set ValidYN to 'Y'
+// Modified: Update Multiplier and ValidYN
 async function updateCustMstData(conn) {
   try {
     const { sql, req } = conn;
     const dbName = process.env.yDb;
-    const { yCmId, yCmMulBy } = req.body;
+    const { yCmId, yCmMulBy, yCmValidYN } = req.body;
 
     const modUsr = req.body.modUsr;
 
@@ -43,6 +44,9 @@ async function updateCustMstData(conn) {
     }
     if (yCmMulBy === null || yCmMulBy === undefined || yCmMulBy === '') {
       throw new Error('Multiplier value is required');
+    }
+    if (!yCmValidYN || (yCmValidYN !== 'Y' && yCmValidYN !== 'N')) {
+      throw new Error('Valid Y/N must be Y or N');
     }
 
     const mulValue = parseFloat(yCmMulBy);
@@ -56,13 +60,13 @@ async function updateCustMstData(conn) {
       throw new Error('Multiplier can have up to 2 decimal places only');
     }
 
-    // Update query: Set yCmMulBy and automatically set yCmValidYN to 'Y'
+    // Update query: Set yCmMulBy and yCmValidYN
     const queryStmts = {
       rawQuery: `
         UPDATE [${dbName}].dbo.yCustMst 
         SET 
           yCmMulBy = @yCmMulBy,
-          yCmValidYN = 'Y',
+          yCmValidYN = @yCmValidYN,
           yModUsr = @yModUsr,
           yModDt = GETDATE()
         WHERE yCmId = @yCmId
@@ -70,11 +74,13 @@ async function updateCustMstData(conn) {
       inputTypeMap: {
         yCmId: sql.Int,
         yCmMulBy: sql.Decimal(10, 2),
+        yCmValidYN: sql.VarChar(1),
         yModUsr: sql.VarChar(50)
       },
       inputValuesMap: {
         yCmId: parseInt(yCmId),
         yCmMulBy: parseFloat(mulValue.toFixed(2)),
+        yCmValidYN: yCmValidYN,
         yModUsr: modUsr
       },
       returnRaw: true
@@ -86,7 +92,7 @@ async function updateCustMstData(conn) {
       throw new Error('Customer not found or no changes made');
     }
 
-    return { message: 'Multiplier updated successfully and customer validated', yCmId };
+    return { message: 'Customer updated successfully', yCmId };
   } catch (error) {
     console.error("Error in updateCustMstData:", error);
     throw error;

@@ -9,7 +9,8 @@ const CustomerManager = (() => {
     { key: 'yCmEmail', label: 'Email' },
     { key: 'yCmCurCd', label: 'Currency' },
     { key: 'yCmDfltLng', label: 'Language' },
-    { key: 'yCmMulBy', label: 'Multiplier', editable: true }
+    { key: 'yCmMulBy', label: 'Multiplier', editable: true },
+    { key: 'yCmValidYN', label: 'Valid Y/N', editable: true }
   ];
 
   // Initialize
@@ -63,7 +64,7 @@ const CustomerManager = (() => {
   }
 
   // Update customer
-  async function updateCustomer(rowId, multiplierValue) {
+  async function updateCustomer(rowId, multiplierValue, validYN) {
     showLoading(true);
     
     const modUsr = sessionStorage.getItem('modUsr') || '';
@@ -75,6 +76,7 @@ const CustomerManager = (() => {
         body: JSON.stringify({ 
           yCmId: rowId, 
           yCmMulBy: parseFloat(multiplierValue),
+          yCmValidYN: validYN,
           modUsr: modUsr 
         })
       });
@@ -82,14 +84,14 @@ const CustomerManager = (() => {
       const result = await response.json();
       
       if (result.success) {
-        showMessage('Multiplier updated successfully.', 'success');
+        showMessage('Customer updated successfully.', 'success');
         return true;
       } else {
-        showMessage(result.error || 'Failed to update multiplier', 'error');
+        showMessage(result.error || 'Failed to update customer', 'error');
         return false;
       }
     } catch (error) {
-      showMessage('Error updating multiplier: ' + error.message, 'error');
+      showMessage('Error updating customer: ' + error.message, 'error');
       return false;
     } finally {
       showLoading(false);
@@ -108,7 +110,7 @@ const CustomerManager = (() => {
     
     // Render body
     if (!data || data.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No data available</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="9" style="text-align: center;">No data available</td></tr>';
       return;
     }
     
@@ -116,9 +118,18 @@ const CustomerManager = (() => {
       const cells = TABLE_COLUMNS.map(col => {
         const value = row[col.key] ?? '';
         if (col.editable) {
-          return `<td><input type="number" step="0.01" min="1" class="edit-field" 
-                    data-field="${col.key}" value="${value}" 
-                    oninput="CustomerManager.validateDecimalInput(this)" disabled></td>`;
+          if (col.key === 'yCmMulBy') {
+            return `<td><input type="number" step="0.01" min="1" class="edit-field" 
+                      data-field="${col.key}" value="${value}" 
+                      oninput="CustomerManager.validateDecimalInput(this)" disabled></td>`;
+          } else if (col.key === 'yCmValidYN') {
+            return `<td>
+                      <select class="edit-field" data-field="${col.key}" disabled>
+                        <option value="Y" ${value === 'Y' ? 'selected' : ''}>Y</option>
+                        <option value="N" ${value === 'N' ? 'selected' : ''}>N</option>
+                      </select>
+                    </td>`;
+          }
         }
         return `<td>${value}</td>`;
       }).join('');
@@ -137,17 +148,30 @@ const CustomerManager = (() => {
     const row = document.querySelector(`tr[data-id="${rowId}"]`);
     if (!row) return;
     
-    const input = row.querySelector('.edit-field');
+    const inputs = row.querySelectorAll('.edit-field');
     const editBtn = row.querySelector('.edit-btn');
     const saveBtn = row.querySelector('.save-btn');
     const cancelBtn = row.querySelector('.cancel-btn');
     
-    editingRows.set(rowId, { yCmMulBy: input.value });
+    // Store original values
+    const originalValues = {};
+    inputs.forEach(input => {
+      const field = input.dataset.field;
+      originalValues[field] = input.value;
+    });
+    editingRows.set(rowId, originalValues);
     
-    input.disabled = false;
-    input.classList.add('editing');
-    input.focus();
-    input.select();
+    // Enable editing
+    inputs.forEach(input => {
+      input.disabled = false;
+      input.classList.add('editing');
+    });
+    
+    const multiplierInput = row.querySelector('input[data-field="yCmMulBy"]');
+    if (multiplierInput) {
+      multiplierInput.focus();
+      multiplierInput.select();
+    }
     
     editBtn.classList.add('hidden');
     saveBtn.classList.remove('hidden');
@@ -163,14 +187,18 @@ const CustomerManager = (() => {
     const originalValues = editingRows.get(rowId);
     if (!originalValues) return;
     
-    const input = row.querySelector('.edit-field');
+    const inputs = row.querySelectorAll('.edit-field');
     const editBtn = row.querySelector('.edit-btn');
     const saveBtn = row.querySelector('.save-btn');
     const cancelBtn = row.querySelector('.cancel-btn');
     
-    input.value = originalValues.yCmMulBy;
-    input.disabled = true;
-    input.classList.remove('editing');
+    // Restore original values
+    inputs.forEach(input => {
+      const field = input.dataset.field;
+      input.value = originalValues[field];
+      input.disabled = true;
+      input.classList.remove('editing');
+    });
     
     editBtn.classList.remove('hidden');
     saveBtn.classList.add('hidden');
@@ -185,32 +213,45 @@ const CustomerManager = (() => {
     const row = document.querySelector(`tr[data-id="${rowId}"]`);
     if (!row) return;
     
-    const input = row.querySelector('.edit-field');
-    const value = input.value.trim();
+    const multiplierInput = row.querySelector('input[data-field="yCmMulBy"]');
+    const validYNSelect = row.querySelector('select[data-field="yCmValidYN"]');
     
-    // Validate
-    if (!value) {
+    const multiplierValue = multiplierInput.value.trim();
+    const validYNValue = validYNSelect.value;
+    
+    // Validate multiplier
+    if (!multiplierValue) {
       showMessage('Multiplier value is required', 'error');
-      input.focus();
+      multiplierInput.focus();
       return;
     }
     
-    if (isNaN(value) || parseFloat(value) < 1) {
+    if (isNaN(multiplierValue) || parseFloat(multiplierValue) < 1) {
       showMessage('Multiplier must be 1 or greater', 'error');
-      input.focus();
+      multiplierInput.focus();
+      return;
+    }
+    
+    // Validate Valid Y/N
+    if (!validYNValue || (validYNValue !== 'Y' && validYNValue !== 'N')) {
+      showMessage('Valid Y/N must be Y or N', 'error');
+      validYNSelect.focus();
       return;
     }
     
     // Save to server
-    const success = await updateCustomer(rowId, value);
+    const success = await updateCustomer(rowId, multiplierValue, validYNValue);
     
     if (success) {
+      const inputs = row.querySelectorAll('.edit-field');
       const editBtn = row.querySelector('.edit-btn');
       const saveBtn = row.querySelector('.save-btn');
       const cancelBtn = row.querySelector('.cancel-btn');
       
-      input.disabled = true;
-      input.classList.remove('editing');
+      inputs.forEach(input => {
+        input.disabled = true;
+        input.classList.remove('editing');
+      });
       
       editBtn.classList.remove('hidden');
       saveBtn.classList.add('hidden');
